@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   minio:
     image: quay.io/minio/minio:latest
@@ -6,12 +7,27 @@ services:
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: strongpassword
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
-    command: server /data --console-address ":9001"
+    labels:
+      # Enable Traefik routing for MinIO
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`minio.marjane.beebay.cloud`)"
+      - "traefik.http.routers.minio.entrypoints=https"
+      - "traefik.http.routers.minio.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio.service=minio"
+      - "traefik.docker.network=coolify"
+    networks:
+      - coolify
+    ports:
+      - "9001:9001"  # Keep console port exposed, but not the main MinIO port
+    # Don't expose 9000 directly via the host
+
+networks:
+  coolify:
+    external: true
 
 volumes:
   minio-data:
